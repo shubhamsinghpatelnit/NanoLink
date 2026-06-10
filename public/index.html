@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NanoLink - Login</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f2f5; margin: 0; }
+        .card { background: white; padding: 3rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center; width: 100%; max-width: 400px; }
+        h1 { margin-bottom: 0.5rem; color: #1a1a1a; font-size: 2rem; font-weight: 700; }
+        p { color: #666; margin-bottom: 2rem; }
+        #buttonDiv { display: flex; justify-content: center; height: 50px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>NanoLink</h1>
+        <p>Shorten your links securely.</p>
+        
+        <div id="buttonDiv"></div>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <script>
+        const GOOGLE_CLIENT_ID = "940375498624-m4juig6oc3ne06vj1id7r9ap6ht8bnsh.apps.googleusercontent.com"; 
+
+        window.onload = function () {
+            google.accounts.id.initialize({
+                client_id: GOOGLE_CLIENT_ID,
+                callback: handleCredentialResponse
+            });
+            google.accounts.id.renderButton(
+                document.getElementById("buttonDiv"),
+                { theme: "outline", size: "large", width: 250 } 
+            );
+            google.accounts.id.prompt(); 
+        };
+
+        async function handleCredentialResponse(response) {
+            console.log("Google Token Received. Sending to backend...");
+
+            try {
+                const serverResponse = await fetch('/auth/google', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: response.credential })
+                });
+
+                const data = await serverResponse.json();
+
+                if (data.success) {
+                    console.log("Login Success!");
+                    window.location.href = "/dashboard.html";
+                } else {
+                    alert("Login Failed: " + data.message);
+                }
+            } catch (error) {
+                console.error("Error talking to backend:", error);
+                alert("Server error during login.");
+            }
+        }
+    </script>
+</body>
+</html>

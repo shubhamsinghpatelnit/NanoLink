@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NanoLink Dashboard</title>
+    <style>
+        body { font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f9f9f9; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input { width: 70%; padding: 10px; margin-right: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #ddd; }
+        a { color: #007bff; text-decoration: none; }
+        .error { color: red; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>My Links</h1>
+        <button onclick="logout()" style="background: #666;">Logout</button>
+    </div>
+
+    <div class="card">
+        <h3>Create New Link</h3>
+        <div style="display: flex;">
+            <input type="url" id="originalUrl" placeholder="Paste your long URL here (e.g., https://youtube.com/...)" required>
+            <button onclick="shortenUrl()">Shorten</button>
+        </div>
+        <p id="message" class="error" style="color: green;"></p>
+    </div>
+
+    <div class="card">
+        <h3>Your Shortened URLs</h3>
+        <table id="urlsTable">
+            <thead>
+                <tr>
+                    <th>Short Link</th>
+                    <th>Original URL</th>
+                    <th>Clicks</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
+
+    <script>
+        // --- 1. CHECK LOGIN & LOAD DATA ---
+        window.onload = async function() {
+            try {
+                // We don't have the token in JS (it's in an httpOnly cookie), 
+                // so we just try to fetch the data. If it fails, we know we aren't logged in.
+                const response = await fetch('/dashboard/my-urls');
+                
+                if (response.status === 401) {
+                    window.location.href = "/index.html"; // Redirect to login
+                    return;
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    renderTable(data.data);
+                }
+            } catch (err) {
+                console.error("Failed to load dashboard", err);
+            }
+        };
+
+        // --- 2. RENDER TABLE ---
+        function renderTable(urls) {
+            const tbody = document.querySelector("#urlsTable tbody");
+            tbody.innerHTML = ""; // Clear current list
+
+            urls.forEach(url => {
+                const shortLink = `${window.location.origin}/${url.short_code}`;
+                const row = `
+                    <tr>
+                        <td><a href="${shortLink}" target="_blank">${url.short_code}</a></td>
+                        <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            ${url.original_url}
+                        </td>
+                        <td>${url.clicks}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        // --- 3. CREATE LINK ---
+        async function shortenUrl() {
+            const input = document.getElementById("originalUrl");
+            const message = document.getElementById("message");
+            const originalUrl = input.value;
+
+            if (!originalUrl) return;
+
+            try {
+                const response = await fetch('/shorten', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ originalUrl })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    message.style.color = "green";
+                    message.innerText = "Link created! " + window.location.origin + "/" + data.data.short_code;
+                    input.value = ""; // Clear input
+                    // Refresh the list immediately
+                    location.reload(); 
+                } else {
+                    message.style.color = "red";
+                    message.innerText = data.message;
+                }
+            } catch (err) {
+                message.innerText = "Error creating link";
+            }
+        }
+
+        function logout() {
+            // To logout, we usually hit a /auth/logout endpoint to clear cookies.
+            // For now, we just redirect. The cookie will persist (unless we clear it), 
+            // but this is just a demo.
+            window.location.href = "/index.html";
+        }
+    </script>
+</body>
+</html>
